@@ -54,14 +54,14 @@ jobs:
       - name: Install Android SDK command-line tools + a build-time JDK
         run: |
           npx @bubblewrap/cli doctor || true
-          yes | npx @bubblewrap/cli init --manifest "$PAGES_URL/manifest.webmanifest" \
+          yes | npx @bubblewrap/cli init --manifest "${PAGES_URL%/}/manifest.webmanifest" \
             --directory ./twa-project || true
 
       - name: Create the Android project from the manifest
         working-directory: ./twa-project
         run: |
           if [ ! -f twa-manifest.json ]; then
-            yes | npx @bubblewrap/cli init --manifest "$PAGES_URL/manifest.webmanifest"
+            yes | npx @bubblewrap/cli init --manifest "${PAGES_URL%/}/manifest.webmanifest"
           fi
 
       - name: Build the APK
