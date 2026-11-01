@@ -1,0 +1,81 @@
+name: Build APK
+
+# Builds an installable Android .apk from this folder using Bubblewrap
+# (Google's official tool for wrapping a web app as a native Android app).
+#
+# SETUP (one-time, before this will work):
+#   1. Push this whole windows-sim folder to a GitHub repo.
+#   2. Enable GitHub Pages: repo Settings -> Pages -> Deploy from branch -> main / (root).
+#      Wait for the Pages URL to go live, e.g. https://yourname.github.io/yourrepo/
+#   3. Edit PAGES_URL below to that exact URL (must end with a slash).
+#   4. Commit. Go to the Actions tab and run this workflow manually,
+#      or just push - it also runs automatically on every push to main.
+#   5. When it finishes, open the workflow run and download the "windows-sim-apk"
+#      artifact (a zip containing app-release-signed.apk). Install that file on
+#      an Android phone (you may need to allow "install unknown apps" once).
+#
+# This produces a real, installable .apk. It is self-signed for personal use,
+# which is normal for apps you install directly rather than through the Play Store.
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'index.html'
+      - 'manifest.webmanifest'
+      - 'icons/**'
+      - '.github/workflows/build.yml'
+  workflow_dispatch: {}
+
+env:
+  PAGES_URL: https://teerapatlekdeeit-byte.github.io/window-sim/
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Java (needed by the Android build tools)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Node.js (Bubblewrap runs on Node)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Bubblewrap CLI
+        run: npm install -g @bubblewrap/cli
+
+      - name: Install Android SDK command-line tools + a build-time JDK
+        run: |
+          npx @bubblewrap/cli doctor || true
+          yes | npx @bubblewrap/cli init --manifest "$PAGES_URL/manifest.webmanifest" \
+            --directory ./twa-project || true
+
+      - name: Create the Android project from the manifest
+        working-directory: ./twa-project
+        run: |
+          if [ ! -f twa-manifest.json ]; then
+            yes | npx @bubblewrap/cli init --manifest "$PAGES_URL/manifest.webmanifest"
+          fi
+
+      - name: Build the APK
+        working-directory: ./twa-project
+        run: npx @bubblewrap/cli build --skipPwaValidation
+
+      - name: Rename output for clarity
+        working-directory: ./twa-project
+        run: |
+          mkdir -p ../dist
+          cp app-release-signed.apk ../dist/windows-sim.apk || cp *.apk ../dist/windows-sim.apk
+
+      - name: Upload the APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-sim-apk
+          path: dist/windows-sim.apk
